@@ -48,6 +48,14 @@ Descriptive statistics and regression analysis were used to analyze the data.
 
 The study provides partial confirmation of the hypotheses. Topping up donations led to lower donation amounts, indicating a crowding out effect. However, matching donations did not significantly increase donation amounts.
 
+## Authors and Contributions
+
+- **Xana Ashburner**: Literature Review
+- **Jane Weinfurtner**: Experiment Design
+- **Aidai Elbekova**: Data Cleaning, Descriptive Statistics, and Regression Analysis
+
+The actual experiment was conducted collaboratively by all authors.
+
 ## Repository Structure
 - **/docs**: Contains detailed reports, survey templates, and supporting literature.
 - **/code**: Includes scripts used for data analysis.
