@@ -1,0 +1,396 @@
+#Libraries
+library(openxlsx)   
+require(openxlsx)
+library(summarytools)
+library(scatr)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(writexl)
+library(lme4)
+library(tidyr)
+
+
+#loading student info
+Survey_final <- read.xlsx("~/Desktop/EBGO/QMEE/Survey_Final.xlsx")
+
+#checking missing values
+sum(is.na(Students_info))
+
+
+as.data.frame(sapply(Survey_final,class))
+descr(Survey_final,
+      headings = FALSE, 
+      stats = "all" 
+)
+summary(Survey_final)
+
+data_summary <- data.frame(unclass(descr(Survey_final,
+                                         stats = "all" 
+)),
+                           check.names = FALSE)
+data_summary
+
+write_xlsx(data_summary,"~/Desktop/EBGO/QMEE/data_summary.xlsx")
+
+cumsum_table <- cumsum(Survey_final$donation_game_1) 
+print(cumsum_table)
+
+ggplot(Survey_final, aes(x = `Donation`)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Paired Samples Wilcoxon Test for Treatment 1
+
+treatment_1 <- data.frame(Survey_final$donation_game_1, Survey_final$donation_game_2) 
+treatment_1_results <- 
+  gather(treatment_1, treatment_group, value, Survey_final.donation_game_1:Survey_final.donation_game_2)
+
+
+# Paired Samples Wilcoxon Test
+set.seed(10)
+result = wilcox.test(value ~ treatment_group,
+                     data = treatment_1_results,
+                     paired = TRUE,
+                     alternative = "greater")
+
+# Printing the results
+print(result)
+
+# Paired Samples Wilcoxon Test for Treatment 2
+treatment_2 <- data.frame(Survey_final$donation_game_1, Survey_final$donation_game_3) 
+treatment_2_resutls<- gather(treatment_2, treatment_group, value, 
+                             Survey_final.donation_game_1:Survey_final.donation_game_3)
+
+
+# Paired Samples Wilcoxon Test
+
+result = wilcox.test(value ~ treatment_group,
+                     data = treatment_2_resutls,
+                     paired = TRUE,
+                     alternative = "greater")
+
+# Printing the results
+print(result)
+
+  
+#PANAS calculation for control
+
+#PANAS calculation for control before donations
+Survey_final <- Survey_final %>%
+  rowwise() %>%
+  mutate(panas_control_before_positive = sum(c_across(PANAS_1_1:PANAS_1_10), na.rm = TRUE)) %>% 
+  mutate(panas_control_before_negative = sum(c_across(PANAS_1_12:PANAS_1_20), na.rm = TRUE))  
+
+Survey_final$panas_control_before_score <- 
+  Survey_final$panas_control_before_positive - Survey_final$panas_control_before_negative
+
+#PANAS calculation for control after donations
+Survey_final <- Survey_final %>%
+  rowwise() %>%
+  mutate(panas_control_after_positive = sum(c_across(PANAS_2_1:PANAS_2_10), na.rm = TRUE)) %>% 
+  mutate(panas_control_after_negative = sum(c_across(PANAS_2_12:PANAS_2_20), na.rm = TRUE))  
+
+Survey_final$panas_control_after_score <- Survey_final$panas_control_after_positive - 
+  Survey_final$panas_control_after_negative
+
+#PANAS calculation for control treatment - the difference
+Survey_final$panas_control_difference <- Survey_final$panas_control_after_score - 
+  Survey_final$panas_control_before_score
+
+# Create dummy variable based on the difference
+threshold <- 0  # Set your threshold value here
+Survey_final$panas_control_difference_dummy <- ifelse(Survey_final$panas_control_difference > threshold, 1, 0)
+
+# PANAS calculation for treatment 1 before donations
+Survey_final <- Survey_final %>%
+  rowwise() %>%
+  mutate(panas_treatment1_before_positive = sum(c_across(PANAS_3_1:PANAS_3_10), na.rm = TRUE),
+         panas_treatment1_before_negative = sum(c_across(PANAS_3_12:PANAS_3_20), na.rm = TRUE))  
+
+Survey_final$panas_treatment1_before_score <- 
+  Survey_final$panas_treatment1_before_positive - Survey_final$panas_treatment1_before_negative
+
+# PANAS calculation for treatment 1 after donations
+Survey_final <- Survey_final %>%
+  rowwise() %>%
+  mutate(panas_treatment1_after_positive = sum(c_across(PANAS_4_1:PANAS_4_10), na.rm = TRUE), 
+         panas_treatment1_after_negative = sum(c_across(PANAS_4_12:PANAS_4_20), na.rm = TRUE))  
+
+Survey_final$panas_treatment1_after_score <- 
+  Survey_final$panas_treatment1_after_positive - Survey_final$panas_treatment1_after_negative
+
+# PANAS calculation for treatment 1 - the difference
+Survey_final$panas_treatment1_difference <- 
+  Survey_final$panas_treatment1_after_score - Survey_final$panas_treatment1_before_score
+
+# Create dummy variable based on the difference
+threshold <- 0  # Set your threshold value here
+Survey_final$panas_treatment1_difference_dummy <- ifelse(Survey_final$panas_treatment1_difference > threshold, 1, 0)
+
+# PANAS calculation for treatment 2 before donations
+Survey_final <- Survey_final %>%
+  rowwise() %>%
+  mutate(panas_treatment2_before_positive = sum(c_across(PANAS_5_1:PANAS_5_10), na.rm = TRUE),
+         panas_treatment2_before_negative = sum(c_across(PANAS_5_12:PANAS_5_20), na.rm = TRUE))  
+
+Survey_final$panas_treatment2_before_score <- 
+  Survey_final$panas_treatment2_before_positive - Survey_final$panas_treatment2_before_negative
+
+# PANAS calculation for treatment 2 after donations
+Survey_final <- Survey_final %>%
+  rowwise() %>%
+  mutate(panas_treatment2_after_positive = sum(c_across(PANAS_6_1:PANAS_6_10), na.rm = TRUE), 
+         panas_treatment2_after_negative = sum(c_across(PANAS_6_12:PANAS_6_20), na.rm = TRUE))  
+
+Survey_final$panas_treatment2_after_score <- 
+  Survey_final$panas_treatment2_after_positive - Survey_final$panas_treatment2_after_negative
+
+# PANAS calculation for treatment 2 - the difference
+Survey_final$panas_treatment2_difference <- 
+  Survey_final$panas_treatment2_after_score - Survey_final$panas_treatment2_before_score
+
+# Create dummy variable based on the difference
+threshold <- 0  # Set your threshold value here
+Survey_final$panas_treatment2_difference_dummy <- ifelse(Survey_final$panas_treatment2_difference > threshold, 1, 0)
+
+#warm glow direct question
+#warm glow direct question_ control
+threshold_warm_glow <- 3  # Set your threshold value here
+Survey_final$warm_glow_control_dummy <- ifelse(Survey_final$warm_glow_1 > threshold_warm_glow, 1, 0)
+
+#warm glow direct question_ treatment 1
+Survey_final$warm_glow_treatment1_dummy <- ifelse(Survey_final$warm_glow_2 > threshold_warm_glow, 1, 0)
+
+#warm glow direct question_ treatment 2
+Survey_final$warm_glow_treatment2_dummy <- ifelse(Survey_final$warm_glow_3 > threshold_warm_glow, 1, 0)
+
+#unicef
+threshold_unicef <- 3  
+
+# Set your threshold value here
+Survey_final$unicef_dummy <- ifelse(Survey_final$unicef > threshold_unicef, 1, 0)
+
+# Create a dummy variable for gender
+Survey_final$gender_dummy <- ifelse(
+  is.na(Survey_final$Gender) | Survey_final$Gender == "N/A", "N/A",
+  ifelse(Survey_final$Gender == "Male", 1, 0)
+)
+
+#model_1 Anova for donation amount & treatment 
+#donation_1 <- data.frame(Survey_final$donation_game_1, Survey_final$donation_game_2,Survey_final$donation_game_3, Survey_final$ID) 
+#donation_1_results <- gather(donation_1, Treatment, DonationAmount, Survey_final.donation_game_1:Survey_final.donation_game_3)
+
+#model <- lmer(DonationAmount ~Treatment + (1|Survey_final.ID), data=donation_1_results)
+#summary(model)
+
+#model_2 donation amount & SubjectID | Treatment | PANAS_change |
+
+#data frame for model_2
+#'Treatment' column should contain levels: 'Control', 'Treatment 1', 'Treatment 2'
+#'PANAS_change' is the variable representing the change in state (as described)
+donation_2 <- data.frame(Survey_final$donation_game_1, 
+                        Survey_final$donation_game_2,
+                        Survey_final$donation_game_3,
+                        Survey_final$panas_control_difference_dummy, 
+                        Survey_final$panas_treatment1_difference_dummy, 
+                        Survey_final$panas_treatment2_difference_dummy,
+                        Survey_final$ID)
+
+# Rename columns for clarity
+colnames(donation_2) <- c("Amount1", "Amount2", "Amount3", 
+                          "PANAS_change1", "PANAS_change2", "PANAS_change3", "SubjectID")
+
+# Define PANAS change labels
+panas_change_labels <- c("PANAS_change1_label", "PANAS_change2_label", "PANAS_change3_label")
+
+# Reshape the data
+donation_transformed_2 <- donation_2 %>%
+  gather(key = Treatment, value = DonationAmount, Amount1:Amount3) %>%
+  gather(key = PANAS_change, value = PANAS_change_dummy, PANAS_change1:PANAS_change3) %>%
+  filter(!is.na(DonationAmount)) %>%
+  mutate(
+    Treatment = ifelse(Treatment == "Amount1", "Control", 
+                       ifelse(Treatment == "Amount2", "Treatment1", "Treatment2")),
+    PANAS_change = ifelse(PANAS_change == "PANAS_change1", panas_change_labels[1], 
+                          ifelse(PANAS_change == "PANAS_change2", panas_change_labels[2], panas_change_labels[3]))
+  ) %>%
+  select(SubjectID, Treatment, DonationAmount, PANAS_change, PANAS_change_dummy) %>%
+  arrange(SubjectID)
+
+#model_2 donation amount & SubjectID | Treatment | PANAS_change | warm
+
+# Fit an extended linear mixed-effects model 
+extended_model <- lmer(DonationAmount ~ Treatment + PANAS_change_dummy + (1|SubjectID), 
+                       data = donation_transformed_2) 
+# Print model summary 
+summary(extended_model)
+
+# Fit an extended linear mixed-effects model 
+extended_model_2 <- lmer(DonationAmount ~ Treatment + (1|SubjectID), 
+                       data = donation_transformed_2) 
+# Print model summary 
+summary(extended_model_2)
+
+#model_3 donation amount & SubjectID | Treatment | PANAS_change |warm glow direct | UNICEF | gender
+
+# Dataframe for model_3
+donation_3 <- data.frame(Survey_final$donation_game_1, 
+                         Survey_final$donation_game_2,
+                         Survey_final$donation_game_3,
+                         Survey_final$panas_control_difference_dummy, 
+                         Survey_final$panas_treatment1_difference_dummy, 
+                         Survey_final$panas_treatment2_difference_dummy,
+                         Survey_final$warm_glow_control_dummy,
+                         Survey_final$warm_glow_treatment1_dummy,
+                         Survey_final$warm_glow_treatment2_dummy,
+                         Survey_final$unicef_dummy,
+                         Survey_final$gender_dummy,
+                         Survey_final$Treatment,
+                         Survey_final$ID)
+
+
+colnames(donation_3) <- c(
+  "Amount1", "Amount2", "Amount3", 
+  "PANAS_change1", "PANAS_change2", "PANAS_change3", 
+  "WarmGlow_control", "WarmGlow_treatment1", "WarmGlow_treatment2", 
+  "UNICEF", "Gender", "TreatmentOrder", "SubjectID"
+)
+
+# Reshape the data using gather
+donation_transformed_3 <- donation_3 %>%
+  gather(key = Treatment, value = DonationAmount, Amount1:Amount3) %>%
+  gather(key = PANAS_change_dummy, value = PANAS_change_value, PANAS_change1:PANAS_change3) %>%
+  gather(key = WarmGlow_dummy, value = WarmGlow_value, WarmGlow_control:WarmGlow_treatment2) %>%
+  filter(!is.na(DonationAmount)) %>%
+  mutate(
+    Treatment = ifelse(Treatment == "Amount1", "Control", 
+                       ifelse(Treatment == "Amount2", "Treatment 1", "Treatment 2")),
+    PANAS_change_dummy = ifelse(
+      PANAS_change_dummy == "PANAS_change1", "PANAS_change1", 
+      ifelse(PANAS_change_dummy == "PANAS_change2", "PANAS_change2", "PANAS_change3")
+    ),
+    WarmGlow_dummy = ifelse(
+      WarmGlow_dummy == "WarmGlow_control", "WarmGlow_control", 
+      ifelse(WarmGlow_dummy == "WarmGlow_treatment1", "WarmGlow_treatment1", "WarmGlow_treatment2")
+    )
+  ) %>%
+  arrange(SubjectID)
+
+donation_transformed_3 <- donation_transformed_3 %>%
+  group_by(SubjectID) %>%
+  mutate(TreatmentOrder = match(Treatment, unique(Treatment))) %>%
+  ungroup()
+
+# 'Treatment' column should contain levels: 'Control', 'Treatment 1', 'Treatment 2'
+# 'PANAS_change_dummy', 'warmglow_dummy', 'UNICEF_dummy', and 'gender' are the additional variables 
+
+# Fit an extended linear mixed-effects model with all independent variables 
+extended_model_3 <- lmer(DonationAmount ~ Treatment + PANAS_change_dummy + 
+                         WarmGlow_dummy + 
+                         UNICEF + 
+                         Gender + 
+                         Treatment * TreatmentOrder + (1 | SubjectID), data = donation_transformed_3) 
+# Print model summary 
+summary(extended_model_3)
+
+library(ggplot2)
+tdat <- data.frame(predicted=predict(model), residual = residuals(model))
+ggplot(tdat,aes(x=predicted,y=residual)) + geom_point() + geom_hline(yintercept=0, lty=3)
+
+ggplot(tdat,aes(x=residual)) + geom_histogram(bins=20, color="black")
+
+# Load necessary libraries (if not already loaded)
+library(dplyr)
+
+# Calculate correlations between PANAS scores and warm glow
+
+# Reshape the data using gather
+donation_transformed_4 <- donation_3 %>%
+  gather(key = Treatment, value = DonationAmount, Amount1:Amount3) %>%
+  gather(key = PANAS_change_dummy, value = PANAS_change_value, PANAS_change1:PANAS_change3) %>%
+  gather(key = WarmGlow_dummy, value = WarmGlow_value, WarmGlow_control:WarmGlow_treatment2) %>%
+  filter(!is.na(DonationAmount)) %>%
+  rowwise() %>%
+  mutate(
+    Treatment = ifelse(Treatment == "Amount1", "Control", 
+                       ifelse(Treatment == "Amount2", "Treatment 1", "Treatment 2")),
+    PANAS_change_dummy = case_when(
+      PANAS_change_value == sum(PANAS_change_value[1:3], na.rm = TRUE) ~ "PANAS_change1",
+      PANAS_change_value == sum(PANAS_change_value[2:3], na.rm = TRUE) ~ "PANAS_change2",
+      PANAS_change_value == sum(PANAS_change_value[3:3], na.rm = TRUE) ~ "PANAS_change3"
+    ),
+    WarmGlow_dummy = ifelse(
+      WarmGlow_dummy == "WarmGlow_control", "WarmGlow_control", 
+      ifelse(WarmGlow_dummy == "WarmGlow_treatment1", "WarmGlow_treatment1", "WarmGlow_treatment2")
+    )
+  ) %>%
+  ungroup() %>%
+  arrange(SubjectID)
+
+# Fit an extended linear mixed-effects model with all independent variables 
+extended_model_4 <- lmer(DonationAmount ~ Treatment + PANAS_change_value + 
+                           WarmGlow_value + 
+                           UNICEF + 
+                           Gender + 
+                           Treatment * TreatmentOrder + (1 | SubjectID), data = donation_transformed_3) 
+# Print model summary 
+summary(extended_model_4)
+
+#correlation analysis
+# Load necessary libraries
+library(dplyr)
+
+# Calculate correlation matrix
+correlation_matrix <- cor(donation_transformed_4[, c("DonationAmount", "PANAS_change_value", "WarmGlow_value")], use = "complete.obs")
+
+# Print the correlation matrix
+print("Correlation between Donation Amount, PANAS_change_value, and WarmGlow_value:")
+print(correlation_matrix)
+
+#correlation for all varibales 
+# Select numeric columns for correlation analysis
+numeric_columns <- sapply(donation_transformed_4, is.numeric)
+
+# Subset the correlation_data dataframe to include only numeric columns
+correlation_data <- donation_transformed_4 %>%
+  select(all_of(names(donation_transformed_4)[numeric_columns]))
+
+# Calculate correlation matrix
+correlation_matrix_2 <- cor(correlation_data, use = "complete.obs")
+
+# Print the correlation matrix
+print("Correlation Matrix:")
+print(correlation_matrix_2)
+
+# Load required libraries
+library(ggplot2)
+library(reshape2)
+
+# Create a sample data frame (replace this with your actual data)
+data <- data.frame(
+  UNICEF = rnorm(100),
+  Gender = rnorm(100),
+  DonationAmount = rnorm(100),
+  PANAS_change_value = rnorm(100),
+  WarmGlow_value = rnorm(100)
+)
+
+# Calculate the correlation matrix
+correlation_matrix <- cor(data)
+
+# Melt the correlation matrix for ggplot
+correlation_melted <- melt(correlation_matrix)
+
+# Create a heatmap using ggplot2
+heatmap_plot <- ggplot(correlation_melted, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradientn(colors = c("#F7CD4F", "#3F5CE6"), limits = c(-1, 1)) +
+  geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 4) +
+  labs(x = NULL, y = NULL, title = "Correlation Heatmap") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display the plot
+print(heatmap_plot)
